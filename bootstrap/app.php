@@ -3,7 +3,9 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -14,7 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        $middleware->append(\App\Http\Middleware\LogActivityMiddleware::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->render(function (NotFoundHttpException $e, Request $request) {
@@ -23,6 +25,19 @@ return Application::configure(basePath: dirname(__DIR__))
                     'message' => 'Record not found.'
                 ], 404);
             }
+        });
+
+        $exceptions->render(function (ThrottleRequestsException $e, Request $request) {
+            return response()->json([
+                'message' => 'Too many requests, kindly wait a bit.'
+            ], 429);
+        });
+
+        $exceptions->render(function (AccessDeniedHttpException $e, Request $request) {
+            return response()->json([
+                'status' => 'false',
+                'message' => 'Unauthorized.'
+            ], 403);
         });
 
     })->create();
